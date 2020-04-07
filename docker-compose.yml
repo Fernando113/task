@@ -1,0 +1,89 @@
+version: '3'
+
+services:
+  main:
+    image: nginx:1.15.3-alpine
+    container_name: task_main
+    hostname: task.dockery
+    volumes:
+      - ./configs/nginx/:/etc/nginx/conf.d/:ro
+      - ./logs/nginx:/var/log/nginx
+      - ${TASK_DIR}/public:/var/www/task/public
+    ports:
+      - "8181:80"
+    networks:
+      task:
+        ipv4_address: 172.16.237.2
+    extra_hosts:
+      - "task.dockery:127.0.0.1"
+      - "php.dockery:172.16.237.7"
+
+  mysql:
+    image: mysql:5.7
+    container_name: task_mysql
+    hostname: mysql.dockery
+    ports:
+      - "3301:3306"
+    environment:
+      - MYSQL_ROOT_PASSWORD=root
+    networks:
+      task:
+        ipv4_address: 172.16.237.3
+
+  mongo:
+    image: mongo:3.6.12
+    container_name: task_mongo
+    hostname: mongo.dockery
+    ports:
+      - "27011:27017"
+      - "28011:28017"
+    networks:
+      task:
+        ipv4_address: 172.16.237.4
+
+  redis:
+    image: redis:5.0.5
+    container_name: task_redis
+    hostname: redis.dockery
+    ports:
+      - "6371:6379"
+    networks:
+      task:
+        ipv4_address: 172.16.237.5
+
+  rabbitmq:
+    image: rabbitmq:3.6-management
+    container_name: task_rabbitmq
+    hostname: rabbitmq.dockery
+    volumes:
+      - ./configs/rabbitmq/rabbitmq.config:/etc/rabbitmq/rabbitmq.config
+    ports:
+      - "15671:15672"
+      - "5671:5672"
+    networks:
+      task:
+        ipv4_address: 172.16.237.6
+
+  php:
+    container_name: task_php
+    build:
+      context: ./docker
+    volumes:
+      - ${TASK_DIR}:/var/www/task
+      - ./configs/php/php.ini:/usr/local/etc/php/php.ini:ro
+    extra_hosts:
+      - "mysql.dockery:172.16.237.3"
+      - "mongo.dockery:172.16.237.4"
+      - "redis.dockery:172.16.237.5"
+      - "rabbitmq.dockery:172.16.237.6"
+    networks:
+      task:
+        ipv4_address: 172.16.237.7
+
+networks:
+  task:
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.16.237.0/24
